@@ -9,13 +9,14 @@
 #include <map>
 using namespace std;
 //using namespace glm;
-GLuint ibo;
+
 
 // Constructor of a triangle mesh.
 TriangleMesh::TriangleMesh()
 {
 	// -------------------------------------------------------
 	// Add your initialization code here.
+	vboId = 0;
 	numVertices = 0;
 	numTriangles = 0;
 	objCenter = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -68,13 +69,32 @@ void TriangleMesh::delete_model()
 void TriangleMesh::LoadBuffer(bool load)
 {
 	// Create vertex buffer.
-	if (!load) glGenBuffers(1, &vboId);
+	if (!load) glGenBuffers(2, &vboId); // 配合AttribPointer分配2個
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vboId);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(VertexPTN) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
 	// Create index buffer.
 	if (!load) glGenBuffers(1, &ibo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * vertexIndices.size(), &vertexIndices[0], GL_STATIC_DRAW); // sizeof(x) is get memory size
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * vertexIndices.size(), &vertexIndices[0], GL_STATIC_DRAW);
+
+	//for (int i = 0; i < vertices.size(); i++)
+	//{
+	//	cout << "vertices(x, y, z) = (" << vertices[i].position[0] << ", " << vertices[i].position[1] << ", " << vertices[i].position[2] << ")\n";
+	//}
+	//
+	//cout << "vertexindices = ";
+	//for (int i = 0; i < vertexIndices.size(); i++)
+	//{
+	//	cout << vertexIndices[i] << " ";
+	//}
+	//cout << endl;
+	//for (int i = 0; i < subMeshes.size(); i++)
+	//{
+	//	if (!load) glGenBuffers(1, &subMeshes[i].iboId);
+	//	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, subMeshes[i].iboId);
+	//	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * subMeshes[i].vertexIndices.size(), &subMeshes[i].vertexIndices[0], GL_STATIC_DRAW); // sizeof(x) is get memory size
+	//}
+	
 }
 
 void TriangleMesh::DrawTriangles()
@@ -85,19 +105,40 @@ void TriangleMesh::DrawTriangles()
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexPTN), 0);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexPTN), (const GLvoid*)12);
 	glBindBuffer(GL_ARRAY_BUFFER, ibo);
-	glDrawElements(GL_TRIANGLES, GetNumTriangles() * 3, GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, vertexIndices.size(), GL_UNSIGNED_INT, 0);
+	//for (int i = 0; i < subMeshes.size(); i++)
+	//{
+	//	glBindBuffer(GL_ARRAY_BUFFER, subMeshes[i].iboId);
+	//	glDrawElements(GL_TRIANGLES, subMeshes[i].vertexIndices.size(), GL_UNSIGNED_INT, 0);
+	//}
+	
 	glDisableVertexAttribArray(0);
 	glDisableVertexAttribArray(1);
 }
 
+// Apply transform to vertices using GPU.
+void TriangleMesh::ApplyTransformCPU(const glm::mat4x4& mvpMatrix)
+{
+	for (int i = 0; i < numVertices; ++i) {
+		glm::vec4 p = mvpMatrix * glm::vec4(vertices[i].position, 1.0f);
+		if (p.w != 0.0f) {
+			float inv = 1.0f / p.w;
+			vertices[i].position.x = p.x * inv;
+			vertices[i].position.y = p.y * inv;
+			vertices[i].position.z = p.z * inv;
+		}
+	}
+}
+
 // get the face data for three point(三點成一面的資料)
-void TriangleMesh::get_face_data(map<int, map<int, map<int, int> > >& v_table, vector<vector<int> > fd, vector <glm::vec3> v, vector <glm::vec2> vt, vector <glm::vec3> vn) {
+void TriangleMesh::get_face_data(map<int, map<int, map<int, int> > >& v_table, vector<vector<int> > fd, vector <glm::vec3> v, vector <glm::vec2> vt, vector <glm::vec3> vn, vector <int> mtl_group_indx, vector <int> mtl_fd) {
 	VertexPTN tmp;
-	int indx = 0;
+	int indx = 0, j = 0;
 	int p = 0, t = 0, n = 0;
 	map<int, map<int, map<int, int> > >::iterator it_p;
 	map<int, map<int, int> >::iterator it_t;
 	map<int, int>::iterator it_n;
+
 	for (int i = 0; i < fd.size(); i++)
 	{
 		p = fd[i][0];
@@ -112,6 +153,13 @@ void TriangleMesh::get_face_data(map<int, map<int, map<int, int> > >& v_table, v
 				it_n = v_table[p][t].find(n);
 				if (it_n != v_table[p][t].end())
 				{
+					//if (i < mtl_fd[j]*3)
+					//	subMeshes[mtl_group_indx[j]].vertexIndices.push_back(v_table[p][t][n]);
+					//else
+					//{
+					//	j++;
+					//	subMeshes[mtl_group_indx[j]].vertexIndices.push_back(v_table[p][t][n]);
+					//}
 					vertexIndices.push_back(v_table[p][t][n]);
 				}
 				else
@@ -121,6 +169,13 @@ void TriangleMesh::get_face_data(map<int, map<int, map<int, int> > >& v_table, v
 					tmp.texcoord = vt[t];
 					tmp.normal = vn[n];
 					vertices.push_back(tmp);
+					//if (i < mtl_fd[j]*3)
+					//	subMeshes[mtl_group_indx[j]].vertexIndices.push_back(indx);
+					//else
+					//{
+					//	j++;
+					//	subMeshes[mtl_group_indx[j]].vertexIndices.push_back(indx);
+					//}
 					vertexIndices.push_back(indx);
 					indx++;
 				}
@@ -134,6 +189,13 @@ void TriangleMesh::get_face_data(map<int, map<int, map<int, int> > >& v_table, v
 				tmp.texcoord = vt[t];
 				tmp.normal = vn[n];
 				vertices.push_back(tmp);
+				//if (i < mtl_fd[j]*3)
+				//	subMeshes[mtl_group_indx[j]].vertexIndices.push_back(indx);
+				//else
+				//{
+				//	j++;
+				//	subMeshes[mtl_group_indx[j]].vertexIndices.push_back(indx);
+				//}
 				vertexIndices.push_back(indx);
 				indx++;
 			}
@@ -149,6 +211,13 @@ void TriangleMesh::get_face_data(map<int, map<int, map<int, int> > >& v_table, v
 			tmp.texcoord = vt[t];
 			tmp.normal = vn[n];
 			vertices.push_back(tmp);
+			//if (i < mtl_fd[j]*3)
+			//	subMeshes[mtl_group_indx[j]].vertexIndices.push_back(indx);
+			//else
+			//{
+			//	j++;
+			//	subMeshes[mtl_group_indx[j]].vertexIndices.push_back(indx);
+			//}
 			vertexIndices.push_back(indx);
 			indx++;
 		}
@@ -187,11 +256,14 @@ bool TriangleMesh::LoadFromFile(const std::string& filePath, const bool normaliz
 	vector <glm::vec3> vn;
 	vector<vector<int> > f;
 	map<int, map<int, map<int, int> > > v_table;
+	bool isnewmtl = false;
+	int num_triangle = 0;
 	string mtllib_str;
 	string mtl_filePath;
 	vector <string> mtl_names;
-	size_t mtl_group = -1;
-	int mtl_count = 0;
+	int mtl_group = -1;
+	vector <int> mtl_group_indx;
+	vector <int> mtl_fd;
 	int row = 0, number = 0;
 	while (getline(file, line)) {
 		if (line.substr(0, 2) == "v ") // 'v' ==> read vertex position (頂點)
@@ -202,6 +274,7 @@ bool TriangleMesh::LoadFromFile(const std::string& filePath, const bool normaliz
 			s >> y_v;
 			s >> z_v;
 			glm::vec3 p = glm::vec3(x_v, y_v, z_v);
+			//cout << "p = (" << p[0] << ", " << p[1] << ", " << p[2] << ")\n";
 			v.push_back(p);
 			if (firstPosion)
 			{
@@ -267,9 +340,12 @@ bool TriangleMesh::LoadFromFile(const std::string& filePath, const bool normaliz
 					f.push_back(f_indx[count - 1]);
 					f.push_back(ptn);
 					f_indx.push_back(ptn);
+					num_triangle++;
 				}
 				count++;
 			}
+			num_triangle++;
+			isnewmtl = true;
 		}
 		else if (line.substr(0, 1) == "mtllib ")
 		{
@@ -278,29 +354,69 @@ bool TriangleMesh::LoadFromFile(const std::string& filePath, const bool normaliz
 		}
 		else if (line.substr(0, 7) == "usemtl ")
 		{
-			mtl_count++;
+			if (isnewmtl)
+			{
+				mtl_fd.push_back(num_triangle);
+				isnewmtl = false;
+			}
+
 			string mtl_name = line.substr(7);
 			vector<string>::iterator it = find(mtl_names.begin(), mtl_names.end(), mtl_name);
 			if (it == mtl_names.end())
 			{
-				subMeshes.emplace_back();
-				mtl_group = subMeshes.size() - 1;
-
-				mtl_names.emplace_back(mtl_name);
-				PhongMaterial mtl;
-				mtl.SetName(mtl_name);
-				subMeshes[mtl_group].material = &mtl;
+				subMeshes.emplace_back(); // names跟submeshes同步
+				mtl_group = subMeshes.size() - 1; // 若沒找到新入的name，就新增到最尾端
+				mtl_group_indx.push_back(mtl_group);
+				mtl_names.emplace_back(mtl_name); // names跟submeshes同步
+				subMeshes[mtl_group].material = new PhongMaterial(); // 直接在.material指標上配置新的PhongMaterial
+				subMeshes[mtl_group].material->SetName(mtl_name);
 			}
 			else
+			{
 				mtl_group = distance(mtl_names.begin(), it);
+				mtl_group_indx.push_back(mtl_group);
+			}
 		}
 	}
 	file.close();
 
-	get_face_data(v_table, f, v, vt, vn);
+	mtl_fd.push_back(num_triangle);
+
+	//for (int i = 0; i < v.size(); i++)
+	//{
+	//	cout << "v(x, y, z) = (" << v[i][0] << ", " << v[i][1] << ", " << v[i][2] << ")\n";
+	//}
+	get_face_data(v_table, f, v, vt, vn, mtl_group_indx, mtl_fd);
+	//cout << "vertexIndices[i] = ";
+	//for (int i = 0; i < vertexIndices.size(); i++)
+	//{
+	//	cout << vertexIndices[i] << " ";
+	//}
+	//cout << endl;
+	//for (int i = 0; i < vertices.size(); i++)
+	//{
+	//	cout << "vertices(x, y, z) = (" << vertices[i].position[0] << ", " << vertices[i].position[1] << ", " << vertices[i].position[2] << ")\n";
+	//	cout << "vertices(t1, t2) = (" << vertices[i].texcoord[0] << ", " << vertices[i].texcoord[1] << ")\n";
+	//	cout << "vertices(nx, ny, nz) = (" << vertices[i].normal[0] << ", " << vertices[i].normal[1] << ", " << vertices[i].normal[2] << ")\n";
+	//}
+	//cout << endl;
+	
+	//for (int i = 0; i < subMeshes.size(); i++)
+	//{
+	//	for (int j = 0; j < subMeshes[i].vertexIndices.size(); j++)
+	//		cout << subMeshes[i].vertexIndices[j] << " ";
+	//	cout << endl;
+	//}
+
 	numVertices = vertices.size();
-	int numVertexIndices = vertexIndices.size();
+	int numVertexIndices = 0;
+	numVertexIndices = vertexIndices.size();
+	//for (int i = 0; i < subMeshes.size(); i++)
+	//{
+	//	numVertexIndices += subMeshes[i].vertexIndices.size();
+	//}
 	numTriangles = numVertexIndices / 3;
+
 
 	objCenter = glm::vec3((max_x + min_x) / 2.0, (max_y + min_y) / 2.0, (max_z + min_z) / 2.0);
 	objExtent = glm::vec3(max_x - min_x, max_y - min_y, max_z - min_z);

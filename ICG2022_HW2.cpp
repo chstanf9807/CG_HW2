@@ -159,10 +159,7 @@ void RenderSceneCB()
         
         // -------------------------------------------------------
 		// Add your rendering code here.
-
-        cout << "start drawT" << endl;
         mesh->DrawTriangles();
-        cout << "end of drawT" << endl;
 		// -------------------------------------------------------
     }
     
@@ -322,12 +319,28 @@ void LoadObjects()
 	// -------------------------------------------------------
 
     mesh = new TriangleMesh();
-    // mesh->LoadFromFile("models/ColorCube/ColorCube.obj", true);
+    //mesh->LoadFromFile("F:/ComputerGraphics/HW/ICG2022_HW2/ICG2022_HW2/models/ColorCube/ColorCube.obj", true);
     //mesh->LoadFromFile("models/Bunny/Bunny.obj", true);
     mesh->LoadFromFile(openfilename(), true);
-    mesh->LoadBuffer(load);
     mesh->ShowInfo();
     sceneObj.mesh = mesh;
+
+    //偷看圖形
+    glm::mat4x4 M(1.0f);
+    glm::vec3 cameraPos = glm::vec3(0.0f, 0.5f, 2.0f); // 0.0 0.5 2.0
+    glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    glm::mat4x4 V = lookAt(cameraPos, cameraTarget, cameraUp);
+    float fov = 40.0f;
+    float aspectRatio = (float)screenWidth / (float)screenHeight;
+    float zNear = 0.1f;
+    float zFar = 100.0f;
+    glm::mat4x4 P = glm::perspective(glm::radians(fov), aspectRatio, zNear, zFar);
+    // Apply CPU transformation.
+    glm::mat4x4 MVP = P * V * M;
+    mesh->ApplyTransformCPU(MVP);
+
+    mesh->LoadBuffer(load);
     load = true;
 }
 
