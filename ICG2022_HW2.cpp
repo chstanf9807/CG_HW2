@@ -159,7 +159,30 @@ void RenderSceneCB()
         
         // -------------------------------------------------------
 		// Add your rendering code here.
-        mesh->DrawTriangles();
+        phongShadingShader->Bind();
+        // Transformation matrix.
+        glUniformMatrix4fv(phongShadingShader->GetLocM(), 1, GL_FALSE, glm::value_ptr(sceneObj.worldMatrix));
+        glUniformMatrix4fv(phongShadingShader->GetLocV(), 1, GL_FALSE, glm::value_ptr(camera->GetViewMatrix()));
+        glUniformMatrix4fv(phongShadingShader->GetLocCameraPos(), 1, GL_FALSE, glm::value_ptr(camera->GetCameraPos()));
+        glUniformMatrix4fv(phongShadingShader->GetLocNM(), 1, GL_FALSE, glm::value_ptr(normalMatrix));
+        glUniformMatrix4fv(phongShadingShader->GetLocMVP(), 1, GL_FALSE, glm::value_ptr(MVP)); 
+        //Light data.
+        if (dirLight != nullptr) {
+            glUniform3fv(phongShadingShader->GetLocDirLightDir(), 1, glm::value_ptr(dirLight->GetDirection()));
+            glUniform3fv(phongShadingShader->GetLocDirLightRadiance(), 1, glm::value_ptr(dirLight->GetRadiance()));
+            cout << "LocDirLightDir: " << phongShadingShader->GetLocDirLightDir() << endl;
+            cout << "LocDirLightRadiance: " << phongShadingShader->GetLocDirLightRadiance() << endl;
+            cout << "Direction: " << dirLight->GetDirection()[0] << " " << dirLight->GetDirection()[1] << " " << dirLight->GetDirection()[2] << endl;
+            cout << "Radiance: " << dirLight->GetRadiance()[0] << " " << dirLight->GetRadiance()[1] << " " << dirLight->GetRadiance()[2] << endl;
+        }
+        if (pointLight != nullptr) {
+            glUniform3fv(phongShadingShader->GetLocPointLightPos(), 1, glm::value_ptr(pointLight->GetPosition()));
+            glUniform3fv(phongShadingShader->GetLocPointLightIntensity(), 1, glm::value_ptr(pointLight->GetIntensity()));
+        }
+        glUniform3fv(phongShadingShader->GetLocAmbientLight(), 1, glm::value_ptr(ambientLight));
+
+        sceneObj.mesh->DrawTriangles(phongShadingShader);
+        phongShadingShader->UnBind();
 		// -------------------------------------------------------
     }
     
@@ -278,19 +301,6 @@ void ProcessKeysCB(unsigned char key, int x, int y)
         if (key == 's')
             spotLight->MoveDown(lightMoveSpeed);
     }
-    if (key == 'n') {
-        cout << key << "\nNext~~~" << endl;
-        mesh->LoadFromFile(openfilename(), true);
-        mesh->ShowInfo();
-        mesh->LoadBuffer(load);
-    }
-    if (key == 'r') {
-        cout << key << "\nDelete~~~~" << endl;
-        ReleaseResources();
-        mesh->delete_model();
-        mesh->ShowInfo();
-        RenderSceneCB();
-    }
 }
 
 void SetupRenderState()
@@ -326,22 +336,21 @@ void LoadObjects()
     sceneObj.mesh = mesh;
 
     //偷看圖形
-    glm::mat4x4 M(1.0f);
-    glm::vec3 cameraPos = glm::vec3(0.0f, 0.5f, 2.0f); // 0.0 0.5 2.0
-    glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
-    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    glm::mat4x4 V = lookAt(cameraPos, cameraTarget, cameraUp);
-    float fov = 40.0f;
-    float aspectRatio = (float)screenWidth / (float)screenHeight;
-    float zNear = 0.1f;
-    float zFar = 100.0f;
-    glm::mat4x4 P = glm::perspective(glm::radians(fov), aspectRatio, zNear, zFar);
-    // Apply CPU transformation.
-    glm::mat4x4 MVP = P * V * M;
-    mesh->ApplyTransformCPU(MVP);
+    //glm::mat4x4 M(1.0f);
+    //glm::vec3 cameraPos = glm::vec3(0.0f, 0.5f, 2.0f); // 0.0 0.5 2.0
+    //glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
+    //glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    //glm::mat4x4 V = lookAt(cameraPos, cameraTarget, cameraUp);
+    //float fov = 40.0f;
+    //float aspectRatio = (float)screenWidth / (float)screenHeight;
+    //float zNear = 0.1f;
+    //float zFar = 100.0f;
+    //glm::mat4x4 P = glm::perspective(glm::radians(fov), aspectRatio, zNear, zFar);
+    //// Apply CPU transformation.
+    //glm::mat4x4 MVP = P * V * M;
+    //sceneObj.mesh->ApplyTransformCPU(MVP);
 
-    mesh->LoadBuffer(load);
-    load = true;
+    sceneObj.mesh->LoadBuffer();
 }
 
 void CreateLights()
@@ -383,11 +392,13 @@ void CreateShaderLib()
     // ----------------------------------------------------
 
     fillColorShader = new FillColorShaderProg();
-    if (!fillColorShader->LoadFromFiles("F:/ComputerGraphics/HW/ICG2022_HW2/ICG2022_HW2/shaders/fixed_color.vs", "F:/ComputerGraphics/HW/ICG2022_HW2/ICG2022_HW2/shaders/fixed_color.fs"))
+    if (!fillColorShader->LoadFromFiles("F:/ComputerGraphics/HW/HW2_now/ICG2022_HW2/shaders/fixed_color.vs", "F:/ComputerGraphics/HW/HW2_now/ICG2022_HW2/shaders/fixed_color.fs"))
         exit(1);
 
     phongShadingShader = new PhongShadingDemoShaderProg();
-    if (!phongShadingShader->LoadFromFiles("F:/ComputerGraphics/HW/ICG2022_HW2/ICG2022_HW2/shaders/phong_shading_demo.vs", "F:/ComputerGraphics/HW/ICG2022_HW2/ICG2022_HW2/shaders/phong_shading_demo.fs"))
+    //if (!phongShadingShader->LoadFromFiles("F:/ComputerGraphics/HW/HW2_now/ICG2022_HW2/shaders/gouraud_shading_demo.vs", "F:/ComputerGraphics/HW/HW2_now/ICG2022_HW2/shaders/gouraud_shading_demo.fs"))
+    //    exit(1);
+    if (!phongShadingShader->LoadFromFiles("F:/ComputerGraphics/HW/HW2_now/ICG2022_HW2/shaders/phong_shading_demo.vs", "F:/ComputerGraphics/HW/HW2_now/ICG2022_HW2/shaders/phong_shading_demo.fs"))
         exit(1);
 }
 
@@ -480,7 +491,7 @@ void start_load_file()
         if (_kbhit()) {
             ch = _getch();
             if (ch == 'o') {
-                cout << char(ch) << "\nPeace choose what you want." << endl;
+                cout << char(ch) << "\nPleace choose what you want." << endl;
                 break;
             }
             else if (ch == 27)
