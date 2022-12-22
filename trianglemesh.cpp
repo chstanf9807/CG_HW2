@@ -166,16 +166,16 @@ void TriangleMesh::get_material_data(map<string, int> mtl_table, vector <string>
 			subMeshes[i].material->SetKs(_Ks[mtl_table[*name]]);
 		}
 
-		//float ns = subMeshes[i].material->GetNs();
-		//glm::vec3 ka = subMeshes[i].material->GetKa();
-		//glm::vec3 kd = subMeshes[i].material->GetKd();
-		//glm::vec3 ks = subMeshes[i].material->GetKs();
-		//
-		//cout << subMeshes[i].material->GetName() << ":\n";
-		//cout << "Ns = " << ns << endl;
-		//cout << "Ka = " << ka[0] << " " << ka[1] << " " << ka[2] << endl;
-		//cout << "Kd = " << kd[0] << " " << kd[1] << " " << kd[2] << endl;
-		//cout << "Ks = " << ks[0] << " " << ks[1] << " " << ks[2] << endl;
+		float ns = subMeshes[i].material->GetNs();
+		glm::vec3 ka = subMeshes[i].material->GetKa();
+		glm::vec3 kd = subMeshes[i].material->GetKd();
+		glm::vec3 ks = subMeshes[i].material->GetKs();
+		
+		cout << subMeshes[i].material->GetName() << ":\n";
+		cout << "Ns = " << ns << endl;
+		cout << "Ka = " << ka[0] << " " << ka[1] << " " << ka[2] << endl;
+		cout << "Kd = " << kd[0] << " " << kd[1] << " " << kd[2] << endl;
+		cout << "Ks = " << ks[0] << " " << ks[1] << " " << ks[2] << endl;
 	}
 }
 

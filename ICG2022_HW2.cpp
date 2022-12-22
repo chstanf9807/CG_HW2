@@ -160,9 +160,11 @@ void RenderSceneCB()
         // -------------------------------------------------------
 		// Add your rendering code here.
         phongShadingShader->Bind();
+
+        glUniformMatrix4fv(phongShadingShader->GetLocV(), 1, GL_FALSE, glm::value_ptr(camera->GetViewMatrix()));
+        glm::mat4 _viewMatrix = camera->GetViewMatrix();
         // Transformation matrix.
         glUniformMatrix4fv(phongShadingShader->GetLocM(), 1, GL_FALSE, glm::value_ptr(sceneObj.worldMatrix));
-        glUniformMatrix4fv(phongShadingShader->GetLocV(), 1, GL_FALSE, glm::value_ptr(camera->GetViewMatrix()));
         glUniformMatrix4fv(phongShadingShader->GetLocCameraPos(), 1, GL_FALSE, glm::value_ptr(camera->GetCameraPos()));
         glUniformMatrix4fv(phongShadingShader->GetLocNM(), 1, GL_FALSE, glm::value_ptr(normalMatrix));
         glUniformMatrix4fv(phongShadingShader->GetLocMVP(), 1, GL_FALSE, glm::value_ptr(MVP)); 
@@ -170,10 +172,6 @@ void RenderSceneCB()
         if (dirLight != nullptr) {
             glUniform3fv(phongShadingShader->GetLocDirLightDir(), 1, glm::value_ptr(dirLight->GetDirection()));
             glUniform3fv(phongShadingShader->GetLocDirLightRadiance(), 1, glm::value_ptr(dirLight->GetRadiance()));
-            cout << "LocDirLightDir: " << phongShadingShader->GetLocDirLightDir() << endl;
-            cout << "LocDirLightRadiance: " << phongShadingShader->GetLocDirLightRadiance() << endl;
-            cout << "Direction: " << dirLight->GetDirection()[0] << " " << dirLight->GetDirection()[1] << " " << dirLight->GetDirection()[2] << endl;
-            cout << "Radiance: " << dirLight->GetRadiance()[0] << " " << dirLight->GetRadiance()[1] << " " << dirLight->GetRadiance()[2] << endl;
         }
         if (pointLight != nullptr) {
             glUniform3fv(phongShadingShader->GetLocPointLightPos(), 1, glm::value_ptr(pointLight->GetPosition()));
@@ -334,22 +332,6 @@ void LoadObjects()
     mesh->LoadFromFile(openfilename(), true);
     mesh->ShowInfo();
     sceneObj.mesh = mesh;
-
-    //偷看圖形
-    //glm::mat4x4 M(1.0f);
-    //glm::vec3 cameraPos = glm::vec3(0.0f, 0.5f, 2.0f); // 0.0 0.5 2.0
-    //glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
-    //glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    //glm::mat4x4 V = lookAt(cameraPos, cameraTarget, cameraUp);
-    //float fov = 40.0f;
-    //float aspectRatio = (float)screenWidth / (float)screenHeight;
-    //float zNear = 0.1f;
-    //float zFar = 100.0f;
-    //glm::mat4x4 P = glm::perspective(glm::radians(fov), aspectRatio, zNear, zFar);
-    //// Apply CPU transformation.
-    //glm::mat4x4 MVP = P * V * M;
-    //sceneObj.mesh->ApplyTransformCPU(MVP);
-
     sceneObj.mesh->LoadBuffer();
 }
 

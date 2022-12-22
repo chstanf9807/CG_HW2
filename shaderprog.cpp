@@ -145,6 +145,7 @@ PhongShadingDemoShaderProg::PhongShadingDemoShaderProg()
     // -------------------------------------------------------
 	// Add your code for initializing the data of spot light.
 	// -------------------------------------------------------
+    locV = -1;
 }
 
 PhongShadingDemoShaderProg::~PhongShadingDemoShaderProg()
@@ -168,4 +169,5 @@ void PhongShadingDemoShaderProg::GetUniformVariableLocation()
     // -------------------------------------------------------
 	// Add your code for getting the location of data of spot light.
 	// -------------------------------------------------------
+    locV = glGetUniformLocation(shaderProgId, "viewMatrix");
 }
